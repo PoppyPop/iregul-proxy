@@ -6,7 +6,7 @@ Thank you for your interest in contributing to iRegul Proxy! This document provi
 
 ### Prerequisites
 
-- Python 3.10+ (Python 3.12+ recommended)
+- Python 3.14+
 - [uv](https://github.com/astral-sh/uv) package manager
 
 ### Initial Setup

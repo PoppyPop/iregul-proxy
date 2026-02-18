@@ -211,7 +211,7 @@ The proxy consists of three main components:
 
 ### Requirements
 
-- Python 3.10+ (Python 3.12+ recommended)
+- Python 3.14+
 - uv (recommended) or pip
 - Docker (optional, for containerized deployment)
 
