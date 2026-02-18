@@ -1,5 +1,7 @@
 # iregul-proxy
 
+[![CI](https://github.com/PoppyPop/iregul-proxy/actions/workflows/ci.yml/badge.svg)](https://github.com/PoppyPop/iregul-proxy/actions/workflows/ci.yml)
+
 Serveur proxy local pour les pompes à chaleur basé sur le système iregul
 
 ## Description
@@ -209,7 +211,7 @@ The proxy consists of three main components:
 
 ### Requirements
 
-- Python 3.10+
+- Python 3.10+ (Python 3.12+ recommended)
 - uv (recommended) or pip
 - Docker (optional, for containerized deployment)
 
@@ -224,15 +226,111 @@ The proxy consists of three main components:
 #### Using uv (Recommended)
 
 ```bash
-# Install dependencies
-uv sync
+# Install uv if not already installed
+pip install uv
 
-# Run tests (if available)
-uv run pytest
+# Install dependencies (including dev dependencies)
+uv sync --dev
+
+# Install pre-commit hooks (optional but recommended)
+uv run pre-commit install
 
 # Run the application
 uv run python run_proxy.py
 ```
+
+### Development Workflow
+
+This project enforces strict code quality standards:
+
+#### Type Checking with Pyright
+
+All code must pass strict type checking:
+
+```bash
+# Run type checking
+uv run pyright
+```
+
+All functions must have type hints for parameters and return values.
+
+#### Linting and Formatting with Ruff
+
+Code must be properly formatted and follow linting rules:
+
+```bash
+# Check linting
+uv run ruff check .
+
+# Auto-fix linting issues
+uv run ruff check --fix .
+
+# Format code
+uv run ruff format .
+
+# Check formatting without modifying files
+uv run ruff format --check .
+```
+
+#### Testing with Pytest
+
+All tests must pass before committing:
+
+```bash
+# Run tests
+uv run pytest
+
+# Run tests with coverage
+uv run pytest --cov=iregul_proxy --cov-report=term-missing
+
+# Run tests verbosely
+uv run pytest -v
+```
+
+#### Pre-commit Hooks
+
+Install pre-commit hooks to automatically check code before committing:
+
+```bash
+# Install hooks (one time)
+uv run pre-commit install
+
+# Run hooks manually on all files
+uv run pre-commit run --all-files
+```
+
+The pre-commit hooks will automatically:
+- Run ruff linting and formatting
+- Run pyright type checking
+- Check for trailing whitespace
+- Validate YAML and TOML files
+- Check for security issues
+
+#### Before Committing
+
+Always run these checks before committing:
+
+```bash
+# Quick check
+uv run ruff check --fix . && uv run ruff format . && uv run pyright && uv run pytest
+```
+
+### Adding Dependencies
+
+**Always use uv for package management:**
+
+```bash
+# Add a runtime dependency
+uv add <package-name>
+
+# Add a development dependency
+uv add --dev <package-name>
+
+# Update dependencies
+uv lock --upgrade
+```
+
+Never use pip directly for managing project dependencies.
 
 #### Using pip
 
@@ -263,6 +361,9 @@ docker run -p 65001:65001 -p 8080:8080 iregul-proxy
 ```
 iregul-proxy/
 ├── .github/
+│   ├── workflows/
+│   │   └── ci.yml        # CI/CD workflow
+│   ├── copilot-instructions.md  # Copilot development guidelines
 │   └── dependabot.yml    # Dependabot configuration
 ├── iregul_proxy/
 │   ├── __init__.py       # Package initialization
@@ -270,10 +371,16 @@ iregul-proxy/
 │   ├── proxy.py          # Proxy server implementation
 │   ├── api.py            # JSON API server
 │   └── main.py           # Main entry point
+├── tests/
+│   ├── __init__.py       # Test package initialization
+│   ├── test_config.py    # Configuration tests
+│   └── test_imports.py   # Import tests
 ├── run_proxy.py          # Executable script
-├── pyproject.toml        # Project metadata and dependencies (uv)
+├── pyproject.toml        # Project metadata, dependencies, and tool configs
 ├── uv.lock               # Locked dependencies (uv)
 ├── requirements.txt      # Python dependencies (pip fallback)
+├── .pre-commit-config.yaml  # Pre-commit hooks configuration
+├── .python-version       # Python version specification
 ├── Dockerfile            # Docker image configuration
 ├── docker-compose.yml    # Docker Compose configuration
 ├── .dockerignore         # Docker ignore file
@@ -290,4 +397,11 @@ See LICENSE file for details.
 
 ## Contributing
 
-Contributions are welcome! Please feel free to submit a Pull Request.
+Contributions are welcome! Please read [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines on how to contribute to this project.
+
+Before contributing:
+- Read the contribution guidelines
+- Follow the code quality standards
+- Ensure all tests pass
+- Add tests for new features
+
