@@ -25,7 +25,7 @@ class Config:
     api_port: int = int(os.getenv("API_PORT", "8080"))
 
     @classmethod
-    def from_env(cls) -> "Config":
+    def from_env(cls) -> Config:
         """Create configuration from environment variables."""
         return cls(
             proxy_host=os.getenv("PROXY_HOST", "0.0.0.0"),
