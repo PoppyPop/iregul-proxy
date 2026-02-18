@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 class APIServer:
     """HTTP API server for exposing heat pump data."""
 
-    def __init__(self, host: str, port: int, proxy_server: "ProxyServer"):
+    def __init__(self, host: str, port: int, proxy_server: ProxyServer):
         """Initialize the API server.
 
         Args:
