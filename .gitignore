@@ -24,6 +24,7 @@ wheels/
 venv/
 ENV/
 env/
+.venv/
 
 # IDEs
 .vscode/
@@ -41,3 +42,4 @@ Thumbs.db
 
 # Test files
 test_proxy.py
+

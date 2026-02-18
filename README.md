@@ -20,6 +20,52 @@ iRegul Proxy is a local proxy server for iRegul heat pumps that:
 
 ## Installation
 
+### Option 1: Using Docker (Recommended)
+
+1. Clone the repository:
+```bash
+git clone https://github.com/PoppyPop/iregul-proxy.git
+cd iregul-proxy
+```
+
+2. Start with Docker Compose:
+```bash
+docker-compose up -d
+```
+
+The proxy will start automatically and be available on ports 65001 (proxy) and 8080 (API).
+
+### Option 2: Using uv (Python Package Manager)
+
+1. Clone the repository:
+```bash
+git clone https://github.com/PoppyPop/iregul-proxy.git
+cd iregul-proxy
+```
+
+2. Install uv if not already installed:
+```bash
+pip install uv
+```
+
+3. Sync dependencies:
+```bash
+uv sync
+```
+
+4. Configure the proxy (optional):
+```bash
+cp .env.example .env
+# Edit .env with your settings
+```
+
+5. Run the application:
+```bash
+uv run python run_proxy.py
+```
+
+### Option 3: Using pip
+
 1. Clone the repository:
 ```bash
 git clone https://github.com/PoppyPop/iregul-proxy.git
@@ -45,7 +91,7 @@ Configuration can be done via environment variables or a `.env` file:
 |----------|---------|-------------|
 | `PROXY_HOST` | `0.0.0.0` | Host to bind the proxy server to |
 | `PROXY_PORT` | `65001` | Port to bind the proxy server to |
-| `UPSTREAM_HOST` | `cloud.iregul.com` | Upstream server host to forward messages to |
+| `UPSTREAM_HOST` | `vpn.i-regul.com` | Upstream server host to forward messages to |
 | `UPSTREAM_PORT` | `65001` | Upstream server port to forward messages to |
 | `API_HOST` | `0.0.0.0` | Host to bind the API server to |
 | `API_PORT` | `8080` | Port to bind the API server to |
@@ -54,6 +100,33 @@ Configuration can be done via environment variables or a `.env` file:
 
 ### Starting the Server
 
+#### With Docker Compose
+```bash
+docker-compose up -d
+```
+
+To view logs:
+```bash
+docker-compose logs -f
+```
+
+To stop:
+```bash
+docker-compose down
+```
+
+#### With Docker Build
+```bash
+docker build -t iregul-proxy .
+docker run -d -p 65001:65001 -p 8080:8080 --name iregul-proxy iregul-proxy
+```
+
+#### With uv
+```bash
+uv run python run_proxy.py
+```
+
+#### With Python directly
 ```bash
 python run_proxy.py
 ```
@@ -61,6 +134,11 @@ python run_proxy.py
 Or using the module:
 ```bash
 python -m iregul_proxy.main
+```
+
+Or using the installed script (after `uv sync` or `pip install .`):
+```bash
+iregul-proxy
 ```
 
 ### Using the API
@@ -131,15 +209,61 @@ The proxy consists of three main components:
 
 ### Requirements
 
-- Python 3.8+
+- Python 3.10+
+- uv (recommended) or pip
+- Docker (optional, for containerized deployment)
+
+### Dependencies
+
 - aioiregul >= 0.2.5
-- aiohttp >= 3.9.0
+- aiohttp >= 3.13.3
 - python-dotenv >= 1.0.0
+
+### Setting Up Development Environment
+
+#### Using uv (Recommended)
+
+```bash
+# Install dependencies
+uv sync
+
+# Run tests (if available)
+uv run pytest
+
+# Run the application
+uv run python run_proxy.py
+```
+
+#### Using pip
+
+```bash
+# Create virtual environment
+python -m venv venv
+source venv/bin/activate  # On Windows: venv\Scripts\activate
+
+# Install dependencies
+pip install -r requirements.txt
+
+# Run the application
+python run_proxy.py
+```
+
+### Building Docker Image
+
+```bash
+# Build the image
+docker build -t iregul-proxy .
+
+# Run the container
+docker run -p 65001:65001 -p 8080:8080 iregul-proxy
+```
 
 ### Project Structure
 
 ```
 iregul-proxy/
+├── .github/
+│   └── dependabot.yml    # Dependabot configuration
 ├── iregul_proxy/
 │   ├── __init__.py       # Package initialization
 │   ├── config.py         # Configuration management
@@ -147,10 +271,17 @@ iregul-proxy/
 │   ├── api.py            # JSON API server
 │   └── main.py           # Main entry point
 ├── run_proxy.py          # Executable script
-├── requirements.txt      # Python dependencies
+├── pyproject.toml        # Project metadata and dependencies (uv)
+├── uv.lock               # Locked dependencies (uv)
+├── requirements.txt      # Python dependencies (pip fallback)
+├── Dockerfile            # Docker image configuration
+├── docker-compose.yml    # Docker Compose configuration
+├── .dockerignore         # Docker ignore file
 ├── .env.example          # Example configuration
+├── .gitignore            # Git ignore file
 ├── LICENSE               # License file
-└── README.md             # This file
+├── README.md             # This file
+└── TESTING.md            # Testing guide
 ```
 
 ## License

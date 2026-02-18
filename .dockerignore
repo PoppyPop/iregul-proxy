@@ -1,0 +1,13 @@
+# Ignore Docker volumes and build cache
+.venv/
+.python-version
+
+# Ignore development files
+*.pyc
+__pycache__/
+.env
+test_proxy.py
+
+# Ignore git
+.git/
+.gitignore

@@ -15,7 +15,7 @@ class Config:
     proxy_port: int = 65001
     
     # Upstream server settings
-    upstream_host: str = os.getenv("UPSTREAM_HOST", "cloud.iregul.com")
+    upstream_host: str = os.getenv("UPSTREAM_HOST", "vpn.i-regul.com")
     upstream_port: int = int(os.getenv("UPSTREAM_PORT", "65001"))
     
     # API settings
@@ -28,7 +28,7 @@ class Config:
         return cls(
             proxy_host=os.getenv("PROXY_HOST", "0.0.0.0"),
             proxy_port=int(os.getenv("PROXY_PORT", "65001")),
-            upstream_host=os.getenv("UPSTREAM_HOST", "cloud.iregul.com"),
+            upstream_host=os.getenv("UPSTREAM_HOST", "vpn.i-regul.com"),
             upstream_port=int(os.getenv("UPSTREAM_PORT", "65001")),
             api_host=os.getenv("API_HOST", "0.0.0.0"),
             api_port=int(os.getenv("API_PORT", "8080")),
