@@ -1,0 +1,32 @@
+services:
+  iregul-proxy:
+    build: .
+    container_name: iregul-proxy
+    restart: unless-stopped
+    ports:
+      - "65001:65001"  # Proxy port
+      - "8080:8080"    # API port
+    environment:
+      # Proxy server settings
+      - PROXY_HOST=0.0.0.0
+      - PROXY_PORT=65001
+      
+      # Upstream server settings
+      - UPSTREAM_HOST=vpn.i-regul.com
+      - UPSTREAM_PORT=65001
+      
+      # API server settings
+      - API_HOST=0.0.0.0
+      - API_PORT=8080
+    
+    # Optional: Use env_file instead of environment
+    # env_file:
+    #   - .env
+    
+    # Optional: Add health check
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
