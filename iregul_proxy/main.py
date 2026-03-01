@@ -59,16 +59,22 @@ async def main():
         loop.add_signal_handler(sig, signal_handler)
 
     try:
-        # Create task for proxy server
+        # Create tasks for proxy and API servers
         proxy_task = asyncio.create_task(proxy_server.serve_forever())
+        api_task = asyncio.create_task(api_runner.serve())
 
         # Wait for shutdown signal
         await shutdown_event.wait()
 
-        # Cancel proxy task
+        # Signal API server to exit
+        api_runner.should_exit = True
+
+        # Cancel both tasks
         proxy_task.cancel()
         with contextlib.suppress(asyncio.CancelledError):
             await proxy_task
+        with contextlib.suppress(asyncio.CancelledError):
+            await api_task
 
     except KeyboardInterrupt:
         logger.info("Keyboard interrupt received")
@@ -76,7 +82,6 @@ async def main():
         # Cleanup
         logger.info("Shutting down servers...")
         await proxy_server.stop()
-        await api_runner.cleanup()
         logger.info("Shutdown complete")
 
 

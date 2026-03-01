@@ -10,7 +10,8 @@ authors = [
 ]
 dependencies = [
     "aioiregul>=0.2.5",
-    "aiohttp>=3.13.3",
+    "fastapi>=0.104.0",
+    "uvicorn>=0.24.0",
     "python-dotenv>=1.0.0",
 ]
 
@@ -41,6 +42,7 @@ reportMissingTypeStubs = false
 reportUnknownMemberType = false
 reportUnknownVariableType = false
 reportUnknownArgumentType = false
+reportUnusedFunction = false
 
 [tool.ruff]
 target-version = "py314"
