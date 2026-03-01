@@ -2,17 +2,59 @@
 
 import asyncio
 import logging
+import os
+import time
+from enum import Enum
+from logging.handlers import RotatingFileHandler
 from typing import Any
 
 from aioiregul.v2 import decoder
 
+
+class Direction(Enum):
+    """Direction of data flow through the proxy."""
+
+    CLIENT_TO_UPSTREAM = "client->upstream"
+    UPSTREAM_TO_CLIENT = "upstream->client"
+
+
 logger = logging.getLogger(__name__)
+
+
+class LocalizedFormatter(logging.Formatter):
+    """Formatter that uses localized time instead of UTC."""
+
+    converter = time.localtime
+
+    def format(self, record: logging.LogRecord) -> str:
+        """Format the log record with source field.
+
+        Args:
+            record: The log record to format
+
+        Returns:
+            Formatted log string
+        """
+        if not hasattr(record, "source"):
+            record.source = "UNKNOWN"
+        return super().format(record)
 
 
 class ProxyServer:
     """Proxy server for iRegul heat pump communication."""
 
-    def __init__(self, proxy_host: str, proxy_port: int, upstream_host: str, upstream_port: int):
+    def __init__(
+        self,
+        proxy_host: str,
+        proxy_port: int,
+        upstream_host: str,
+        upstream_port: int,
+        *,
+        log_downstream: bool = False,
+        log_dir: str = "logs",
+        log_max_bytes: int = 10 * 1024 * 1024,
+        log_backup_count: int = 8,
+    ):
         """Initialize the proxy server.
 
         Args:
@@ -20,14 +62,34 @@ class ProxyServer:
             proxy_port: Port to bind the proxy server to
             upstream_host: Upstream server host to forward messages to
             upstream_port: Upstream server port to forward messages to
+            log_downstream: Whether to log messages from downstream (client/heat pump)
+            log_dir: Directory for log files
+            log_max_bytes: Maximum size of each log file before rotation (default 10 MB)
+            log_backup_count: Number of rotated log files to retain (default 8)
         """
         self.proxy_host = proxy_host
         self.proxy_port = proxy_port
         self.upstream_host = upstream_host
         self.upstream_port = upstream_port
+        self.log_downstream = log_downstream
         self.server: asyncio.Server | None = None
         self.last_data: dict[str, Any] | None = None
         self.last_raw_message: str | None = None
+
+        # Set up file logger for both upstream and downstream messages
+        os.makedirs(log_dir, exist_ok=True)
+        log_format = LocalizedFormatter("%(asctime)s - [%(source)s] - %(message)s")
+
+        self.file_logger = logging.getLogger("iregul_proxy.messages")
+        self.file_logger.setLevel(logging.DEBUG)
+        self.file_logger.propagate = False
+        file_handler = RotatingFileHandler(
+            os.path.join(log_dir, "messages.log"),
+            maxBytes=log_max_bytes,
+            backupCount=log_backup_count,
+        )
+        file_handler.setFormatter(log_format)
+        self.file_logger.addHandler(file_handler)
 
     async def handle_client(self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter):
         """Handle a client connection.
@@ -48,10 +110,10 @@ class ProxyServer:
 
             # Create tasks for bidirectional forwarding
             client_to_upstream = asyncio.create_task(
-                self._forward_data(reader, upstream_writer, "client->upstream")
+                self._forward_data(reader, upstream_writer, Direction.CLIENT_TO_UPSTREAM)
             )
             upstream_to_client = asyncio.create_task(
-                self._forward_data(upstream_reader, writer, "upstream->client")
+                self._forward_data(upstream_reader, writer, Direction.UPSTREAM_TO_CLIENT)
             )
 
             # Wait for both tasks to complete
@@ -68,14 +130,14 @@ class ProxyServer:
                 pass
 
     async def _forward_data(
-        self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter, direction: str
+        self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter, direction: Direction
     ):
         """Forward data between reader and writer.
 
         Args:
             reader: Stream reader to read data from
             writer: Stream writer to write data to
-            direction: Direction description for logging
+            direction: Direction of data flow
         """
         try:
             while True:
@@ -84,11 +146,13 @@ class ProxyServer:
                     break
 
                 # Log and decode if data is coming from client (heat pump)
-                if direction == "client->upstream":
+                if direction == Direction.CLIENT_TO_UPSTREAM:
                     try:
                         text_data = data.decode("utf-8", errors="ignore")
                         self.last_raw_message = text_data
-                        logger.debug(f"Received from client: {text_data[:100]}")
+                        if self.log_downstream:
+                            logger.debug(f"Received from client: {text_data[:100]}")
+                        self.file_logger.debug(text_data, extra={"source": "DOWNSTREAM"})
 
                         # Try to decode the message
                         try:
@@ -110,15 +174,24 @@ class ProxyServer:
                     except Exception as e:
                         logger.debug(f"Failed to decode as text: {e}")
 
+                # Log messages from upstream
+                if direction == Direction.UPSTREAM_TO_CLIENT:
+                    try:
+                        text_data = data.decode("utf-8", errors="ignore")
+                        logger.debug(f"Received from upstream: {text_data[:100]}")
+                        self.file_logger.debug(text_data, extra={"source": "UPSTREAM"})
+                    except Exception as e:
+                        logger.debug(f"Failed to decode upstream data as text: {e}")
+
                 # Forward the data
                 writer.write(data)
                 await writer.drain()
 
         except asyncio.CancelledError:
-            logger.debug(f"Forward task cancelled: {direction}")
+            logger.debug(f"Forward task cancelled: {direction.value}")
             raise
         except Exception as e:
-            logger.error(f"Error forwarding data ({direction}): {e}")
+            logger.error(f"Error forwarding data ({direction.value}): {e}")
         finally:
             try:
                 writer.close()

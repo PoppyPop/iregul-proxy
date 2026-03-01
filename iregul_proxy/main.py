@@ -30,7 +30,14 @@ async def main():
 
     # Create servers
     proxy_server = ProxyServer(
-        config.proxy_host, config.proxy_port, config.upstream_host, config.upstream_port
+        config.proxy_host,
+        config.proxy_port,
+        config.upstream_host,
+        config.upstream_port,
+        log_downstream=config.log_downstream,
+        log_dir=config.log_dir,
+        log_max_bytes=config.log_max_bytes,
+        log_backup_count=config.log_backup_count,
     )
 
     api_server = APIServer(config.api_host, config.api_port, proxy_server)
