@@ -31,6 +31,9 @@ class Config:
     log_max_bytes: int = 10 * 1024 * 1024  # 10 MB
     log_backup_count: int = 8
 
+    # Message reading timeout (seconds)
+    readuntil_timeout: int = 5
+
     @classmethod
     def from_env(cls) -> Config:
         """Create configuration from environment variables."""
@@ -46,4 +49,5 @@ class Config:
             log_dir=os.getenv("LOG_DIR", str(d["log_dir"])),
             log_max_bytes=int(os.getenv("LOG_MAX_BYTES", str(d["log_max_bytes"]))),
             log_backup_count=int(os.getenv("LOG_BACKUP_COUNT", str(d["log_backup_count"]))),
+            readuntil_timeout=int(os.getenv("READUNTIL_TIMEOUT", str(d["readuntil_timeout"]))),
         )

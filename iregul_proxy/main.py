@@ -38,6 +38,7 @@ async def main():
         log_dir=config.log_dir,
         log_max_bytes=config.log_max_bytes,
         log_backup_count=config.log_backup_count,
+        readuntil_timeout=config.readuntil_timeout,
     )
 
     api_server = APIServer(config.api_host, config.api_port, proxy_server)

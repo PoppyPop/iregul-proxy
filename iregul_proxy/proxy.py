@@ -54,6 +54,7 @@ class ProxyServer:
         log_dir: str = "logs",
         log_max_bytes: int = 10 * 1024 * 1024,
         log_backup_count: int = 8,
+        readuntil_timeout: int = 5,
     ):
         """Initialize the proxy server.
 
@@ -66,12 +67,14 @@ class ProxyServer:
             log_dir: Directory for log files
             log_max_bytes: Maximum size of each log file before rotation (default 10 MB)
             log_backup_count: Number of rotated log files to retain (default 8)
+            readuntil_timeout: Timeout in seconds for reading messages ending with } (default 5s)
         """
         self.proxy_host = proxy_host
         self.proxy_port = proxy_port
         self.upstream_host = upstream_host
         self.upstream_port = upstream_port
         self.log_downstream = log_downstream
+        self.readuntil_timeout = readuntil_timeout
         self.server: asyncio.Server | None = None
         self.last_data: dict[str, Any] | None = None
         self.last_raw_message: str | None = None
@@ -141,7 +144,19 @@ class ProxyServer:
         """
         try:
             while True:
-                data = await reader.read(4096)
+                try:
+                    # Read until we find a complete message (ending with })
+                    async with asyncio.timeout(self.readuntil_timeout):
+                        data = await reader.readuntil(b"}")
+                except asyncio.TimeoutError:
+                    logger.error(
+                        f"Timeout waiting for message ({direction.value}) - no }} received within {self.readuntil_timeout}s"
+                    )
+                    continue
+                except asyncio.IncompleteReadError as e:
+                    # Connection closed without finding }
+                    data = e.partial
+
                 if not data:
                     break
 
@@ -172,7 +187,7 @@ class ProxyServer:
                         except Exception as e:
                             logger.warning(f"Failed to decode message: {e}")
                     except Exception as e:
-                        logger.debug(f"Failed to decode as text: {e}")
+                        logger.debug(f"Failed to process downstream data: {e}")
 
                 # Log messages from upstream
                 if direction == Direction.UPSTREAM_TO_CLIENT:
@@ -181,7 +196,7 @@ class ProxyServer:
                         logger.debug(f"Received from upstream: {text_data[:100]}")
                         self.file_logger.debug(text_data, extra={"source": "UPSTREAM"})
                     except Exception as e:
-                        logger.debug(f"Failed to decode upstream data as text: {e}")
+                        logger.debug(f"Failed to process upstream data: {e}")
 
                 # Forward the data
                 writer.write(data)
