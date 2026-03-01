@@ -123,8 +123,37 @@ class ProxyServer:
                 self._forward_data(upstream_reader, writer, Direction.UPSTREAM_TO_CLIENT)
             )
 
-            # Wait for both tasks to complete
-            await asyncio.gather(client_to_upstream, upstream_to_client)
+            # Wait for either task to complete, then cancel the other
+            # This ensures that when one direction closes, the other is immediately terminated
+            done, pending = await asyncio.wait(
+                {client_to_upstream, upstream_to_client},
+                return_when=asyncio.FIRST_COMPLETED,
+            )
+
+            # Check if any task completed with an error (not cancelled)
+            for task in done:
+                try:
+                    # This will raise any exception that occurred in the task
+                    task.result()
+                    # Task completed normally (connection closed)
+                    if task == client_to_upstream:
+                        logger.info(f"Client {addr} closed connection")
+                    else:
+                        logger.info(f"Upstream closed connection for client {addr}")
+                except asyncio.CancelledError:
+                    pass  # Task was cancelled, ignore
+                except Exception as e:
+                    if task == client_to_upstream:
+                        logger.error(f"Error in client->upstream forwarding for {addr}: {e}")
+                    else:
+                        logger.error(f"Error in upstream->client forwarding for {addr}: {e}")
+
+            # Cancel any remaining tasks
+            for task in pending:
+                task.cancel()
+
+            # Wait for cancelled tasks to complete
+            await asyncio.gather(*pending, return_exceptions=True)
 
         except asyncio.CancelledError:
             logger.info(f"Connection from {addr} cancelled during shutdown")
@@ -169,8 +198,16 @@ class ProxyServer:
                 except asyncio.IncompleteReadError as e:
                     # Connection closed without finding }
                     data = e.partial
+                    if data:
+                        logger.debug(
+                            f"Connection closing ({direction.value}), received partial data: {len(data)} bytes"
+                        )
+                    else:
+                        logger.debug(f"Connection closed ({direction.value})")
 
                 if not data:
+                    # EOF reached, connection closed
+                    logger.debug(f"EOF reached ({direction.value})")
                     break
 
                 # Log and decode if data is coming from client (heat pump)
@@ -212,14 +249,19 @@ class ProxyServer:
                         logger.debug(f"Failed to process upstream data: {e}")
 
                 # Forward the data
-                writer.write(data)
-                await writer.drain()
+                try:
+                    writer.write(data)
+                    await writer.drain()
+                except (ConnectionResetError, BrokenPipeError) as e:
+                    logger.debug(f"Connection broken while forwarding ({direction.value}): {e}")
+                    break
 
         except asyncio.CancelledError:
             logger.debug(f"Forward task cancelled: {direction.value}")
             raise
         except Exception as e:
             logger.error(f"Error forwarding data ({direction.value}): {e}")
+            raise
         finally:
             try:
                 writer.close()
