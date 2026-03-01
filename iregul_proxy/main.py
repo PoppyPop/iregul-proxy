@@ -1,7 +1,6 @@
 """Main entry point for iRegul proxy server."""
 
 import asyncio
-import contextlib
 import logging
 import signal
 import sys
@@ -67,22 +66,26 @@ async def main():
         # Wait for shutdown signal
         await shutdown_event.wait()
 
+        logger.info("Initiating graceful shutdown...")
+
+        # Stop proxy server (this will close connections and set shutdown event)
+        await proxy_server.stop()
+
         # Signal API server to exit
         api_runner.should_exit = True
 
-        # Cancel both tasks
-        proxy_task.cancel()
-        with contextlib.suppress(asyncio.CancelledError):
-            await proxy_task
-        with contextlib.suppress(asyncio.CancelledError):
-            await api_task
+        # Wait for both tasks to complete gracefully
+        await asyncio.gather(proxy_task, api_task, return_exceptions=True)
 
     except KeyboardInterrupt:
         logger.info("Keyboard interrupt received")
+    except Exception as e:
+        logger.error(f"Error during server operation: {e}")
     finally:
-        # Cleanup
-        logger.info("Shutting down servers...")
-        await proxy_server.stop()
+        # Final cleanup (in case stop wasn't called)
+        logger.info("Final cleanup...")
+        if proxy_server.server:
+            await proxy_server.stop()
         logger.info("Shutdown complete")
 
 

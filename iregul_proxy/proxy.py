@@ -78,6 +78,8 @@ class ProxyServer:
         self.server: asyncio.Server | None = None
         self.last_data: dict[str, Any] | None = None
         self.last_raw_message: str | None = None
+        self.active_connections: set[asyncio.Task[None]] = set()
+        self._shutdown_event = asyncio.Event()
 
         # Set up file logger for both upstream and downstream messages
         os.makedirs(log_dir, exist_ok=True)
@@ -104,6 +106,8 @@ class ProxyServer:
         addr = writer.get_extra_info("peername")
         logger.info(f"Connection from {addr}")
 
+        upstream_writer = None
+
         try:
             # Connect to upstream server
             upstream_reader, upstream_writer = await asyncio.open_connection(
@@ -122,10 +126,19 @@ class ProxyServer:
             # Wait for both tasks to complete
             await asyncio.gather(client_to_upstream, upstream_to_client)
 
+        except asyncio.CancelledError:
+            logger.info(f"Connection from {addr} cancelled during shutdown")
+            raise
         except Exception as e:
             logger.error(f"Error handling client {addr}: {e}")
         finally:
             logger.info(f"Closing connection from {addr}")
+            try:
+                if upstream_writer:
+                    upstream_writer.close()
+                    await upstream_writer.wait_closed()
+            except Exception:
+                pass
             try:
                 writer.close()
                 await writer.wait_closed()
@@ -148,7 +161,7 @@ class ProxyServer:
                     # Read until we find a complete message (ending with })
                     async with asyncio.timeout(self.readuntil_timeout):
                         data = await reader.readuntil(b"}")
-                except asyncio.TimeoutError:
+                except TimeoutError:
                     logger.error(
                         f"Timeout waiting for message ({direction.value}) - no }} received within {self.readuntil_timeout}s"
                     )
@@ -216,26 +229,62 @@ class ProxyServer:
 
     async def start(self):
         """Start the proxy server."""
+        self._shutdown_event.clear()
         self.server = await asyncio.start_server(
-            self.handle_client, self.proxy_host, self.proxy_port
+            self._handle_client_wrapper, self.proxy_host, self.proxy_port
         )
 
         addr = self.server.sockets[0].getsockname()
         logger.info(f"Proxy server started on {addr[0]}:{addr[1]}")
         logger.info(f"Forwarding to {self.upstream_host}:{self.upstream_port}")
 
+    def _handle_client_wrapper(self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter):
+        """Wrapper to track client connections.
+
+        Args:
+            reader: Stream reader for receiving data from client
+            writer: Stream writer for sending data to client
+        """
+        task = asyncio.create_task(self.handle_client(reader, writer))
+        self.active_connections.add(task)
+        task.add_done_callback(self.active_connections.discard)
+
     async def stop(self):
-        """Stop the proxy server."""
+        """Stop the proxy server and close all connections."""
+        logger.info("Stopping proxy server...")
+        self._shutdown_event.set()
+
+        # Close the server (stop accepting new connections)
         if self.server:
             self.server.close()
             await self.server.wait_closed()
-            logger.info("Proxy server stopped")
+            logger.info("Proxy server stopped accepting new connections")
+
+        # Cancel all active connections
+        if self.active_connections:
+            logger.info(f"Cancelling {len(self.active_connections)} active connections...")
+            for task in self.active_connections:
+                task.cancel()
+
+            # Wait for all connections to be closed
+            await asyncio.gather(*self.active_connections, return_exceptions=True)
+            logger.info("All connections closed")
+
+        logger.info("Proxy server stopped")
 
     async def serve_forever(self):
-        """Serve the proxy server forever."""
-        if self.server:
+        """Serve the proxy server forever or until cancelled."""
+        if not self.server:
+            raise RuntimeError("Server not started. Call start() first.")
+
+        try:
+            # Start serving
             async with self.server:
-                await self.server.serve_forever()
+                # Wait until shutdown is requested
+                await self._shutdown_event.wait()
+        except asyncio.CancelledError:
+            logger.info("Proxy serve_forever cancelled")
+            raise
 
     def get_last_data(self) -> dict[str, Any] | None:
         """Get the last decoded data received from the heat pump.
