@@ -217,20 +217,21 @@ class ProxyServer:
                         self.last_raw_message = text_data
                         if self.log_downstream:
                             logger.debug(f"Received from client: {text_data[:100]}")
-                        self.file_logger.debug(text_data, extra={"source": "DOWNSTREAM"})
+                            self.file_logger.debug(text_data, extra={"source": "DOWNSTREAM"})
 
                         # Try to decode the message
                         try:
                             decoded = await decoder.decode_text(text_data)
-                            self.last_data = {
-                                "timestamp": decoded.timestamp.isoformat()
-                                if decoded.timestamp
-                                else None,
-                                "is_old": decoded.is_old,
-                                "count": decoded.count,
-                                "groups": decoded.groups,
-                                "raw": text_data,
-                            }
+                            if not decoded.is_keepalive:
+                                self.last_data = {
+                                    "timestamp": decoded.timestamp.isoformat()
+                                    if decoded.timestamp
+                                    else None,
+                                    "is_old": decoded.is_old,
+                                    "count": decoded.count,
+                                    "groups": decoded.groups,
+                                    "raw": text_data,
+                                }
                             logger.info(
                                 f"Successfully decoded frame: timestamp={decoded.timestamp}, groups={len(decoded.groups)}"
                             )

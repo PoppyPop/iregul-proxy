@@ -26,13 +26,13 @@ class Config:
     api_port: int = 8080
 
     # Logging settings
-    log_downstream: bool = False
+    log_downstream: bool = True
     log_dir: str = "logs"
     log_max_bytes: int = 10 * 1024 * 1024  # 10 MB
     log_backup_count: int = 8
 
     # Message reading timeout (seconds)
-    readuntil_timeout: int = 5
+    readuntil_timeout: int = 75
 
     @classmethod
     def from_env(cls) -> Config:
