@@ -188,7 +188,11 @@ class ProxyServer:
             while True:
                 try:
                     # Read until we find a complete message (ending with })
-                    async with asyncio.timeout(self.readuntil_timeout):
+                    # Only apply timeout for downstream (client to upstream) - no keepalive from upstream
+                    if direction == Direction.CLIENT_TO_UPSTREAM:
+                        async with asyncio.timeout(self.readuntil_timeout):
+                            data = await reader.readuntil(b"}")
+                    else:
                         data = await reader.readuntil(b"}")
                 except TimeoutError:
                     logger.error(
