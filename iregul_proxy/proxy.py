@@ -50,11 +50,11 @@ class ProxyServer:
         upstream_host: str,
         upstream_port: int,
         *,
-        log_downstream: bool = False,
-        log_dir: str = "logs",
-        log_max_bytes: int = 10 * 1024 * 1024,
-        log_backup_count: int = 8,
-        readuntil_timeout: int = 5,
+        log_downstream: bool,
+        log_dir: str,
+        log_max_bytes: int,
+        log_backup_count: int,
+        readuntil_timeout: int,
     ):
         """Initialize the proxy server.
 
@@ -297,12 +297,6 @@ class ProxyServer:
         logger.info("Stopping proxy server...")
         self._shutdown_event.set()
 
-        # Close the server (stop accepting new connections)
-        if self.server:
-            self.server.close()
-            await self.server.wait_closed()
-            logger.info("Proxy server stopped accepting new connections")
-
         # Cancel all active connections
         if self.active_connections:
             logger.info(f"Cancelling {len(self.active_connections)} active connections...")
@@ -312,6 +306,12 @@ class ProxyServer:
             # Wait for all connections to be closed
             await asyncio.gather(*self.active_connections, return_exceptions=True)
             logger.info("All connections closed")
+
+        # Close the server (stop accepting new connections)
+        if self.server:
+            self.server.close()
+            await self.server.wait_closed()
+            logger.info("Proxy server stopped accepting new connections")
 
         logger.info("Proxy server stopped")
 

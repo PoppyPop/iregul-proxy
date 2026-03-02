@@ -192,7 +192,7 @@ Open your browser to `http://localhost:8080/` to see the API documentation.
 
 The proxy consists of three main components:
 
-1. **Proxy Server** (`iregul_proxy/proxy.py`): 
+1. **Proxy Server** (`iregul_proxy/proxy.py`):
    - Listens on port 65001 for heat pump connections
    - Forwards all data to the upstream server
    - Decodes messages from the heat pump using aioiregul
@@ -404,4 +404,3 @@ Before contributing:
 - Follow the code quality standards
 - Ensure all tests pass
 - Add tests for new features
-

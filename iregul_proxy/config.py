@@ -45,7 +45,8 @@ class Config:
             upstream_port=int(os.getenv("UPSTREAM_PORT", str(d["upstream_port"]))),
             api_host=os.getenv("API_HOST", str(d["api_host"])),
             api_port=int(os.getenv("API_PORT", str(d["api_port"]))),
-            log_downstream=os.getenv("LOG_DOWNSTREAM", "false").lower() in ("true", "1", "yes"),
+            log_downstream=os.getenv("LOG_DOWNSTREAM", str(d["log_downstream"]).lower()).lower()
+            in ("true", "1", "yes"),
             log_dir=os.getenv("LOG_DIR", str(d["log_dir"])),
             log_max_bytes=int(os.getenv("LOG_MAX_BYTES", str(d["log_max_bytes"]))),
             log_backup_count=int(os.getenv("LOG_BACKUP_COUNT", str(d["log_backup_count"]))),
