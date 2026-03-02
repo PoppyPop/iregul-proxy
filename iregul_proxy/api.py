@@ -1,12 +1,13 @@
 """JSON API server for exposing heat pump data."""
 
 import logging
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from fastapi import FastAPI
 from pydantic import BaseModel
 
-from .proxy import ProxyServer
+if TYPE_CHECKING:
+    from .proxy import ProxyServer
 
 logger = logging.getLogger(__name__)
 

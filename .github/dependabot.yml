@@ -1,6 +1,6 @@
 version: 2
 updates:
-  # Python dependencies (uv)
+  # Python dependencies managed by uv (pyproject.toml, uv.lock)
   - package-ecosystem: "pip"
     directory: "/"
     schedule:
@@ -9,6 +9,7 @@ updates:
     labels:
       - "dependencies"
       - "python"
+      - "uv"
 
   # Docker dependencies
   - package-ecosystem: "docker"
@@ -29,3 +30,13 @@ updates:
     labels:
       - "dependencies"
       - "github-actions"
+
+  # Pre-commit hooks dependencies
+  - package-ecosystem: "pre-commit"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+      - "pre-commit"

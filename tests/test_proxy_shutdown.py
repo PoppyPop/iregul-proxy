@@ -211,7 +211,7 @@ async def test_shutdown_without_active_connections(
         pytest.fail("Shutdown timed out - server did not shut down gracefully")
 
     # Verify shutdown completed
-    assert proxy_server._shutdown_event.is_set()
+    assert proxy_server._shutdown_event.is_set()  # type: ignore[reportPrivateUsage]
     assert len(proxy_server.active_connections) == 0
 
 
@@ -271,7 +271,7 @@ async def test_shutdown_with_active_connection(
             )
 
         # Verify shutdown completed
-        assert proxy_server._shutdown_event.is_set()
+        assert proxy_server._shutdown_event.is_set()  # type: ignore[reportPrivateUsage]
         assert len(proxy_server.active_connections) == 0
 
         # Try to read from client - should get EOF or connection reset
@@ -348,7 +348,7 @@ async def test_shutdown_with_multiple_active_connections(
             )
 
         # Verify shutdown completed
-        assert proxy_server._shutdown_event.is_set()
+        assert proxy_server._shutdown_event.is_set()  # type: ignore[reportPrivateUsage]
         assert len(proxy_server.active_connections) == 0
 
     finally:
