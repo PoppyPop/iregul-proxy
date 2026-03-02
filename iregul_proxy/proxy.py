@@ -111,7 +111,9 @@ class ProxyServer:
         try:
             # Connect to upstream server
             upstream_reader, upstream_writer = await asyncio.open_connection(
-                self.upstream_host, self.upstream_port
+                self.upstream_host,
+                self.upstream_port,
+                limit=1024 * 1024,  # 1 MB buffer size for upstream connection
             )
             logger.info(f"Connected to upstream server {self.upstream_host}:{self.upstream_port}")
 
@@ -278,7 +280,10 @@ class ProxyServer:
         """Start the proxy server."""
         self._shutdown_event.clear()
         self.server = await asyncio.start_server(
-            self._handle_client_wrapper, self.proxy_host, self.proxy_port
+            self._handle_client_wrapper,
+            self.proxy_host,
+            self.proxy_port,
+            limit=1024 * 1024,  # 1 MB buffer size for incoming client connections
         )
 
         addr = self.server.sockets[0].getsockname()
