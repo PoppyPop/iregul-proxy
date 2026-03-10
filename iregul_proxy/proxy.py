@@ -43,6 +43,9 @@ class LocalizedFormatter(logging.Formatter):
 class ProxyServer:
     """Proxy server for iRegul heat pump communication."""
 
+    # Known message types that are typically logged only if LOG_DOWNSTREAM is true
+    KNOWN_MESSAGE_TYPES = {"10", "200"}
+
     def __init__(
         self,
         proxy_host: str,
@@ -218,16 +221,25 @@ class ProxyServer:
 
                 # Log and decode if data is coming from client (heat pump)
                 if direction == Direction.CLIENT_TO_UPSTREAM:
+                    # Default to logging if we can't decode, to capture unknown formats
+                    should_log = True
+
                     try:
                         text_data = data.decode("utf-8", errors="ignore")
                         self.last_raw_message = text_data
-                        if self.log_downstream:
-                            logger.debug(f"Received from client: {text_data[:100]}")
-                            self.file_logger.debug(text_data, extra={"source": "DOWNSTREAM"})
 
                         # Try to decode the message
                         try:
                             decoded = await decoder.decode_text(text_data)
+
+                            # Determine if we should log this message
+                            if decoded.is_keepalive:
+                                # Never log keepalive messages
+                                should_log = False
+                            elif decoded.message_type in self.KNOWN_MESSAGE_TYPES:
+                                # Known message types: log only if LOG_DOWNSTREAM is true
+                                should_log = self.log_downstream
+
                             if not decoded.is_keepalive:
                                 self.last_data = {
                                     "timestamp": decoded.timestamp.isoformat()
@@ -242,9 +254,17 @@ class ProxyServer:
                                 f"Successfully decoded frame: timestamp={decoded.timestamp}, groups={len(decoded.groups)}"
                             )
                         except Exception as e:
-                            logger.warning(f"Failed to decode message: {e}")
+                            logger.warning(
+                                f"Failed to decode message: {e}. Message: {text_data[:200]}"
+                            )
                     except Exception as e:
-                        logger.debug(f"Failed to process downstream data: {e}")
+                        logger.debug(
+                            f"Failed to process downstream data: {e}. Message: {data[:200]}"
+                        )
+
+                    if should_log:
+                        logger.debug(f"Received from client: {text_data[:100]}")
+                        self.file_logger.debug(text_data, extra={"source": "DOWNSTREAM"})
 
                 # Log messages from upstream
                 if direction == Direction.UPSTREAM_TO_CLIENT:

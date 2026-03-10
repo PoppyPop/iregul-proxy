@@ -9,7 +9,7 @@ authors = [
     { name = "PoppyPop" }
 ]
 dependencies = [
-    "aioiregul>=0.2.5",
+    "aioiregul>=0.2.7",
     "fastapi>=0.104.0",
     "uvicorn>=0.24.0",
     "python-dotenv>=1.0.0",
