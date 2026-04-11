@@ -27,6 +27,22 @@ class DataResponse(BaseModel):
     message: str | None = None
 
 
+class CommandRequest(BaseModel):
+    """Command request body."""
+
+    command: str
+
+
+class CommandResponse(BaseModel):
+    """Command response."""
+
+    status: str
+    command: str
+    internal_command: str | None = None
+    response: str | None = None
+    message: str | None = None
+
+
 class APIServer:
     """HTTP API server for exposing heat pump data."""
 
@@ -89,6 +105,50 @@ class APIServer:
                 status="healthy",
                 proxy_running=self.proxy_server.server is not None,
             )
+
+        @self.app.post(
+            "/api/command",
+            response_model=CommandResponse,
+            summary="Send a command to the heat pump",
+            description=(
+                "Sends a command to the active downstream heat pump connection and returns "
+                "the response. The command is mapped via the proxy's LOCAL_COMMAND_MAP before "
+                "being forwarded (e.g. ``502`` → ``200``)."
+            ),
+        )
+        async def send_command(request: CommandRequest) -> CommandResponse:  # noqa: ARG001
+            """Send a command to the heat pump.
+
+            Returns:
+                CommandResponse with the heat pump response or an error message
+            """
+            external_command = request.command
+            internal_command = self.proxy_server.LOCAL_COMMAND_MAP.get(
+                external_command, external_command
+            )
+            logger.info(f"API command request: {external_command} -> {internal_command}")
+            try:
+                response = await self.proxy_server.execute_command(external_command)
+                return CommandResponse(
+                    status="ok",
+                    command=external_command,
+                    internal_command=internal_command,
+                    response=response,
+                )
+            except ValueError as e:
+                return CommandResponse(
+                    status="error",
+                    command=external_command,
+                    internal_command=internal_command,
+                    message=str(e),
+                )
+            except TimeoutError:
+                return CommandResponse(
+                    status="timeout",
+                    command=external_command,
+                    internal_command=internal_command,
+                    message="Heat pump did not respond in time",
+                )
 
     async def start(self):
         """Start the API server.

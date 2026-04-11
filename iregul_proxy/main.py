@@ -33,6 +33,8 @@ async def main():
         config.proxy_port,
         config.upstream_host,
         config.upstream_port,
+        local_command_host=config.local_command_host,
+        local_command_port=config.local_command_port,
         log_downstream=config.log_downstream,
         log_dir=config.log_dir,
         log_max_bytes=config.log_max_bytes,

@@ -156,6 +156,8 @@ async def proxy_server(mock_upstream: MockUpstreamServer) -> Any:
         proxy_port=0,  # Use any available port
         upstream_host=mock_upstream.host,
         upstream_port=mock_upstream.port,
+        local_command_host="127.0.0.1",
+        local_command_port=0,
         log_downstream=True,
         readuntil_timeout=2,
         log_dir="/tmp",

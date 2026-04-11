@@ -25,6 +25,10 @@ class Config:
     api_host: str = "0.0.0.0"
     api_port: int = 8080
 
+    # Local command socket settings
+    local_command_host: str = "0.0.0.0"
+    local_command_port: int = 65011
+
     # Logging settings
     log_downstream: bool = True
     log_dir: str = "logs"
@@ -45,6 +49,8 @@ class Config:
             upstream_port=int(os.getenv("UPSTREAM_PORT", str(d["upstream_port"]))),
             api_host=os.getenv("API_HOST", str(d["api_host"])),
             api_port=int(os.getenv("API_PORT", str(d["api_port"]))),
+            local_command_host=os.getenv("LOCAL_COMMAND_HOST", str(d["local_command_host"])),
+            local_command_port=int(os.getenv("LOCAL_COMMAND_PORT", str(d["local_command_port"]))),
             log_downstream=os.getenv("LOG_DOWNSTREAM", str(d["log_downstream"]).lower()).lower()
             in ("true", "1", "yes"),
             log_dir=os.getenv("LOG_DIR", str(d["log_dir"])),

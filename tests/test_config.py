@@ -11,6 +11,8 @@ def test_config_defaults() -> None:
     config = Config()
     assert config.proxy_host == "0.0.0.0"
     assert config.proxy_port == 65001
+    assert config.local_command_host == "0.0.0.0"
+    assert config.local_command_port == 65011
     assert config.api_host == "0.0.0.0"
 
 
@@ -25,6 +27,8 @@ def test_config_from_env() -> None:
             "UPSTREAM_PORT": "65003",
             "API_HOST": "127.0.0.1",
             "API_PORT": "8081",
+            "LOCAL_COMMAND_HOST": "127.0.0.1",
+            "LOCAL_COMMAND_PORT": "65011",
         },
     ):
         config = Config.from_env()
@@ -34,6 +38,8 @@ def test_config_from_env() -> None:
         assert config.upstream_port == 65003
         assert config.api_host == "127.0.0.1"
         assert config.api_port == 8081
+        assert config.local_command_host == "127.0.0.1"
+        assert config.local_command_port == 65011
 
 
 def test_config_partial_env() -> None:
