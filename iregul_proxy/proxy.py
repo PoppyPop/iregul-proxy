@@ -172,7 +172,7 @@ class ProxyServer:
         internal_command = self._map_local_command(external_command)
         request_message = self._build_local_request(internal_command)
         logger.debug(f"Executing command {external_command}, mapped to {internal_command}")
-        self.file_logger.debug(request_message, extra={"source": "CONV-DOWN"})
+        self.file_logger.debug(request_message, extra={"source": "LOCAL-UP"})
 
         _connection_id, downstream = await self._get_latest_downstream_connection()
         if downstream is None:
@@ -203,7 +203,7 @@ class ProxyServer:
 
         response_text = response_data.decode("utf-8", errors="ignore")
         modified_response = self._replace_prefix_with_timestamp(response_text)
-        self.file_logger.debug(modified_response, extra={"source": "CONV-UP"})
+        self.file_logger.debug(modified_response, extra={"source": "LOCAL-DOWN"})
         return modified_response
 
     async def _register_downstream_connection(
