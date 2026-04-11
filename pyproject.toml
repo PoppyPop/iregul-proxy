@@ -11,7 +11,7 @@ authors = [
 dependencies = [
     "aioiregul>=0.2.8",
     "fastapi>=0.135.3",
-    "uvicorn>=0.24.0",
+    "uvicorn>=0.44.0",
     "python-dotenv>=1.2.2",
 ]
 
