@@ -27,7 +27,7 @@ packages = ["iregul_proxy"]
 
 [dependency-groups]
 dev = [
-    "pyright>=1.1.390",
+    "pyright>=1.1.408",
     "ruff>=0.15.10",
     "pytest>=9.0.3",
     "pytest-cov>=7.1.0",
