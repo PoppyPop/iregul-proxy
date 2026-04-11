@@ -9,8 +9,9 @@ authors = [
     { name = "PoppyPop" }
 ]
 dependencies = [
-    "aioiregul>=0.2.5",
-    "aiohttp>=3.13.3",
+    "aioiregul>=0.2.7",
+    "fastapi>=0.104.0",
+    "uvicorn>=0.24.0",
     "python-dotenv>=1.0.0",
 ]
 
@@ -35,12 +36,15 @@ dev = [
 ]
 
 [tool.pyright]
+venvPath = "."
+venv = ".venv"
 pythonVersion = "3.14"
 typeCheckingMode = "strict"
 reportMissingTypeStubs = false
 reportUnknownMemberType = false
 reportUnknownVariableType = false
 reportUnknownArgumentType = false
+reportUnusedFunction = false
 
 [tool.ruff]
 target-version = "py314"
@@ -92,7 +96,4 @@ exclude_lines = [
     "raise AssertionError",
     "raise NotImplementedError",
     "if __name__ == .__main__.:",
-    "if TYPE_CHECKING:",
 ]
-
-

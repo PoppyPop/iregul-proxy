@@ -19,7 +19,7 @@ COPY iregul_proxy ./iregul_proxy
 COPY run_proxy.py ./
 
 # Expose ports
-EXPOSE 65001 8080
+EXPOSE 65001 65011 8080
 
 # Set environment variables
 ENV PYTHONUNBUFFERED=1

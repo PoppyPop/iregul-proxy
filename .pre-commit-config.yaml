@@ -5,7 +5,7 @@
 repos:
   # Ruff for linting and formatting
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.8.4
+    rev: v0.15.4
     hooks:
       # Run the linter
       - id: ruff
@@ -15,7 +15,7 @@ repos:
 
   # Pyright for type checking
   - repo: https://github.com/RobertCraigie/pyright-python
-    rev: v1.1.390
+    rev: v1.1.408
     hooks:
       - id: pyright
 
