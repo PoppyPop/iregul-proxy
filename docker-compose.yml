@@ -1,10 +1,11 @@
 services:
   iregul-proxy:
-    build: .
+    image: ghcr.io/poppypop/iregul-proxy:latest
     container_name: iregul-proxy
     restart: unless-stopped
     ports:
       - "65001:65001"  # Proxy port
+      - "65011:65011"  # Local command port
       - "8080:8080"    # API port
     environment:
       # Proxy server settings
