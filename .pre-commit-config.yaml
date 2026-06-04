@@ -15,7 +15,7 @@ repos:
 
   # Pyright for type checking
   - repo: https://github.com/RobertCraigie/pyright-python
-    rev: v1.1.409
+    rev: v1.1.410
     hooks:
       - id: pyright
 
