@@ -1,9 +1,9 @@
 IMAGE_NAME ?= iregul-proxy
 IMAGE_TAG ?= local-test
 
-.PHONY: docker-build-test check coverage pre-commit
+.PHONY: docker-build check coverage pre-commit
 
-docker-build-test:
+docker-build:
 	docker build --pull -t $(IMAGE_NAME):$(IMAGE_TAG) .
 
 check: coverage pre-commit
