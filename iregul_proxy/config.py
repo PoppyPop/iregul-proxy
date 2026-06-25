@@ -30,7 +30,7 @@ class Config:
     local_command_port: int = 65011
 
     # Logging settings
-    log_downstream: bool = True
+    log_downstream: bool = False
     log_dir: str = "logs"
     log_max_bytes: int = 10 * 1024 * 1024  # 10 MB
     log_backup_count: int = 8
