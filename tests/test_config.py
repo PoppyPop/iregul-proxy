@@ -11,6 +11,7 @@ def test_config_defaults() -> None:
     config = Config()
     assert config.proxy_host == "0.0.0.0"
     assert config.proxy_port == 65001
+    assert config.upstream_enabled is True
     assert config.local_command_host == "0.0.0.0"
     assert config.local_command_port == 65011
     assert config.api_host == "0.0.0.0"
@@ -23,6 +24,7 @@ def test_config_from_env() -> None:
         {
             "PROXY_HOST": "127.0.0.1",
             "PROXY_PORT": "65002",
+            "UPSTREAM_ENABLED": "false",
             "UPSTREAM_HOST": "test.example.com",
             "UPSTREAM_PORT": "65003",
             "API_HOST": "127.0.0.1",
@@ -34,6 +36,7 @@ def test_config_from_env() -> None:
         config = Config.from_env()
         assert config.proxy_host == "127.0.0.1"
         assert config.proxy_port == 65002
+        assert config.upstream_enabled is False
         assert config.upstream_host == "test.example.com"
         assert config.upstream_port == 65003
         assert config.api_host == "127.0.0.1"

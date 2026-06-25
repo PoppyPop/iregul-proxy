@@ -60,6 +60,11 @@ Or run them all at once:
 uv run ruff check --fix . && uv run ruff format . && uv run pyright && uv run pytest
 ```
 
+For the local workflow that runs pre-commit and prints a coverage summary:
+```bash
+make check
+```
+
 ### Type Hints
 
 **All functions must have type hints:**

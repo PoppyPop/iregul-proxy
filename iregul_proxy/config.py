@@ -18,6 +18,7 @@ class Config:
     proxy_port: int = 65001
 
     # Upstream server settings
+    upstream_enabled: bool = True
     upstream_host: str = "82.165.167.253"  # "i-regul.fr"
     upstream_port: int = 65001
 
@@ -45,6 +46,10 @@ class Config:
         return cls(
             proxy_host=os.getenv("PROXY_HOST", str(d["proxy_host"])),
             proxy_port=int(os.getenv("PROXY_PORT", str(d["proxy_port"]))),
+            upstream_enabled=os.getenv(
+                "UPSTREAM_ENABLED", str(d["upstream_enabled"]).lower()
+            ).lower()
+            in ("true", "1", "yes"),
             upstream_host=os.getenv("UPSTREAM_HOST", str(d["upstream_host"])),
             upstream_port=int(os.getenv("UPSTREAM_PORT", str(d["upstream_port"]))),
             api_host=os.getenv("API_HOST", str(d["api_host"])),

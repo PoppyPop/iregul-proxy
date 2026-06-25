@@ -37,8 +37,6 @@ class CommandResponse(BaseModel):
     """Command response."""
 
     status: str
-    command: str
-    internal_command: str | None = None
     response: str | None = None
     message: str | None = None
 
@@ -103,7 +101,7 @@ class APIServer:
             """
             return HealthResponse(
                 status="healthy",
-                proxy_running=self.proxy_server.server is not None,
+                proxy_running=await self.proxy_server.downstream_handler.is_connected(),
             )
 
         @self.app.post(
@@ -122,31 +120,22 @@ class APIServer:
             Returns:
                 CommandResponse with the heat pump response or an error message
             """
-            external_command = request.command
-            internal_command = self.proxy_server.LOCAL_COMMAND_MAP.get(
-                external_command, external_command
-            )
-            logger.info(f"API command request: {external_command} -> {internal_command}")
             try:
-                response = await self.proxy_server.execute_command(external_command)
+                response = await self.proxy_server.local_command_handler.execute_command(
+                    request.command
+                )
                 return CommandResponse(
                     status="ok",
-                    command=external_command,
-                    internal_command=internal_command,
                     response=response,
                 )
             except ValueError as e:
                 return CommandResponse(
                     status="error",
-                    command=external_command,
-                    internal_command=internal_command,
                     message=str(e),
                 )
             except TimeoutError:
                 return CommandResponse(
                     status="timeout",
-                    command=external_command,
-                    internal_command=internal_command,
                     message="Heat pump did not respond in time",
                 )
 

@@ -33,12 +33,14 @@ dev = [
     "pytest-cov>=7.1.0",
     "pytest-asyncio>=1.3.0",
     "pre-commit>=4.5.1",
+    "httpx2>=2.5.0",
 ]
 
 [tool.pyright]
 venvPath = "."
 venv = ".venv"
 pythonVersion = "3.14"
+exclude = ["**/node_modules", "**/__pycache__", "**/.*", ".venv", "tests"]
 typeCheckingMode = "strict"
 reportMissingTypeStubs = false
 reportUnknownMemberType = false
@@ -49,6 +51,7 @@ reportUnusedFunction = false
 [tool.ruff]
 target-version = "py314"
 line-length = 100
+exclude = ["tests"]
 
 [tool.ruff.lint]
 select = [
@@ -92,6 +95,8 @@ omit = ["tests/*"]
 [tool.coverage.report]
 exclude_lines = [
     "pragma: no cover",
+    "if TYPE_CHECKING:",
+    "if typing.TYPE_CHECKING:",
     "def __repr__",
     "raise AssertionError",
     "raise NotImplementedError",

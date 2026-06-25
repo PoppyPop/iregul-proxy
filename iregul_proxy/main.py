@@ -22,9 +22,12 @@ async def main():
     config = Config.from_env()
 
     logger.info("Starting iRegul Proxy Server")
-    logger.info(
-        f"Proxy: {config.proxy_host}:{config.proxy_port} -> {config.upstream_host}:{config.upstream_port}"
-    )
+    if config.upstream_enabled:
+        logger.info(
+            f"Proxy: {config.proxy_host}:{config.proxy_port} -> {config.upstream_host}:{config.upstream_port}"
+        )
+    else:
+        logger.info(f"Proxy: {config.proxy_host}:{config.proxy_port} (upstream disabled by config)")
     logger.info(f"API: http://{config.api_host}:{config.api_port}")
 
     # Create servers
@@ -33,6 +36,7 @@ async def main():
         config.proxy_port,
         config.upstream_host,
         config.upstream_port,
+        upstream_enabled=config.upstream_enabled,
         local_command_host=config.local_command_host,
         local_command_port=config.local_command_port,
         log_downstream=config.log_downstream,
@@ -84,10 +88,6 @@ async def main():
     except Exception as e:
         logger.error(f"Error during server operation: {e}")
     finally:
-        # Final cleanup (in case stop wasn't called)
-        logger.info("Final cleanup...")
-        if proxy_server.server:
-            await proxy_server.stop()
         logger.info("Shutdown complete")
 
 

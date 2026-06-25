@@ -8,15 +8,17 @@ Serveur proxy local pour les pompes à chaleur basé sur le système iregul
 
 iRegul Proxy is a local proxy server for iRegul heat pumps that:
 - Receives messages from heat pumps on port 65001
-- Forwards messages to the configured upstream server (e.g., cloud.iregul.com)
+- Optionally forwards messages to the configured upstream server
 - Decodes and stores the last received data using the `aioiregul` library
 - Exposes a JSON API to access the last received heat pump data
+- Exposes a local command socket for command injection
 
 ## Features
 
-- **Transparent Proxy**: Acts as a transparent proxy between your heat pump and the upstream server
+- **Transparent Proxy**: Acts as a transparent proxy between your heat pump and an optional upstream server
 - **Data Decoding**: Automatically decodes heat pump messages using the aioiregul library
-- **JSON API**: Exposes last received data via HTTP REST API
+- **JSON API**: Exposes health, latest data, and command execution via HTTP REST API
+- **Local Command Socket**: Accepts local command frames and routes them to the active heat pump session
 - **Configurable**: Easy configuration via environment variables or .env file
 - **Async/Await**: Built with modern Python async/await for high performance
 
@@ -47,7 +49,7 @@ cd iregul-proxy
 
 2. Install uv if not already installed:
 ```bash
-pip install uv
+curl -LsSf https://astral.sh/uv/install.sh | sh
 ```
 
 3. Sync dependencies:
@@ -76,7 +78,7 @@ cd iregul-proxy
 
 2. Install dependencies:
 ```bash
-pip install -r requirements.txt
+pip install .
 ```
 
 3. Configure the proxy (optional):
@@ -93,10 +95,18 @@ Configuration can be done via environment variables or a `.env` file:
 |----------|---------|-------------|
 | `PROXY_HOST` | `0.0.0.0` | Host to bind the proxy server to |
 | `PROXY_PORT` | `65001` | Port to bind the proxy server to |
-| `UPSTREAM_HOST` | `vpn.i-regul.com` | Upstream server host to forward messages to |
+| `UPSTREAM_ENABLED` | `true` | Enable/disable upstream relay |
+| `UPSTREAM_HOST` | `82.165.167.253` | Upstream server host to forward messages to |
 | `UPSTREAM_PORT` | `65001` | Upstream server port to forward messages to |
 | `API_HOST` | `0.0.0.0` | Host to bind the API server to |
 | `API_PORT` | `8080` | Port to bind the API server to |
+| `LOCAL_COMMAND_HOST` | `0.0.0.0` | Host to bind local command socket to |
+| `LOCAL_COMMAND_PORT` | `65011` | Port to bind local command socket to |
+| `LOG_DOWNSTREAM` | `false` | Enable logging for known downstream types |
+| `LOG_DIR` | `logs` | Directory for rotating message logs |
+| `LOG_MAX_BYTES` | `10485760` | Maximum size per message log file |
+| `LOG_BACKUP_COUNT` | `8` | Number of rotated log files to retain |
+| `READUNTIL_TIMEOUT` | `75` | Timeout (seconds) for framed reads and command waits |
 
 ## Usage
 
@@ -186,24 +196,51 @@ Returns server health status:
 ```
 
 #### Documentation
-Open your browser to `http://localhost:8080/` to see the API documentation.
+Open your browser to `http://localhost:8080/docs` to see the API documentation.
+
+#### Send Command
+```bash
+curl -X POST http://localhost:8080/api/command \
+  -H "Content-Type: application/json" \
+  -d '{"command":"501"}'
+```
+
+Returns command execution status and response text:
+```json
+{
+  "status": "ok",
+  "response": "26/06/2026 12:34:56{...#}",
+  "message": null
+}
+```
 
 ## Architecture
 
-The proxy consists of three main components:
+The proxy consists of the following components:
 
 1. **Proxy Server** (`iregul_proxy/proxy.py`):
-   - Listens on port 65001 for heat pump connections
-   - Forwards all data to the upstream server
-   - Decodes messages from the heat pump using aioiregul
-   - Stores the last decoded data
+  - Composes and wires the downstream, upstream, and local-command handlers
+  - Starts/stops listeners and orchestrates graceful shutdown
 
-2. **API Server** (`iregul_proxy/api.py`):
+2. **Downstream Handler** (`iregul_proxy/downstream.py`):
+  - Listens for heat pump connections and owns the active downstream session
+  - Decodes downstream frames and stores `last_data`
+  - Matches request/response flows by expected message type
+
+3. **Upstream Handler** (`iregul_proxy/upstream.py`):
+  - Maintains optional upstream relay with reconnect behavior
+  - Routes upstream-initiated requests through downstream callback flow
+
+4. **Local Command Handler** (`iregul_proxy/local_command.py`):
+  - Accepts local socket commands
+  - Maps external command types (for example `501 -> 10`, `502 -> 200`)
+  - Rewrites response timestamp prefix for local socket responses
+
+5. **API Server** (`iregul_proxy/api.py`):
    - HTTP REST API on port 8080 (configurable)
-   - Exposes last received data as JSON
-   - Provides health check endpoint
+  - Exposes health, latest data, and command endpoint
 
-3. **Configuration** (`iregul_proxy/config.py`):
+6. **Configuration** (`iregul_proxy/config.py`):
    - Manages configuration from environment variables
    - Supports .env files via python-dotenv
 
@@ -217,9 +254,10 @@ The proxy consists of three main components:
 
 ### Dependencies
 
-- aioiregul >= 0.2.5
-- aiohttp >= 3.13.3
-- python-dotenv >= 1.0.0
+- aioiregul >= 0.2.8
+- fastapi >= 0.135.3
+- uvicorn >= 0.44.0
+- python-dotenv >= 1.2.2
 
 ### Setting Up Development Environment
 
@@ -227,7 +265,7 @@ The proxy consists of three main components:
 
 ```bash
 # Install uv if not already installed
-pip install uv
+curl -LsSf https://astral.sh/uv/install.sh | sh
 
 # Install dependencies (including dev dependencies)
 uv sync --dev
@@ -330,7 +368,7 @@ uv add --dev <package-name>
 uv lock --upgrade
 ```
 
-Never use pip directly for managing project dependencies.
+Prefer uv for managing project dependencies.
 
 #### Using pip
 
@@ -340,7 +378,7 @@ python -m venv venv
 source venv/bin/activate  # On Windows: venv\Scripts\activate
 
 # Install dependencies
-pip install -r requirements.txt
+pip install .
 
 # Run the application
 python run_proxy.py
@@ -368,17 +406,24 @@ iregul-proxy/
 ├── iregul_proxy/
 │   ├── __init__.py       # Package initialization
 │   ├── config.py         # Configuration management
-│   ├── proxy.py          # Proxy server implementation
 │   ├── api.py            # JSON API server
-│   └── main.py           # Main entry point
+│   ├── downstream.py     # Downstream heat pump session handling
+│   ├── local_command.py  # Local command socket handling
+│   ├── proxy.py          # Proxy composition/orchestration
+│   ├── main.py           # Main entry point
+│   └── upstream.py       # Optional upstream relay handling
 ├── tests/
 │   ├── __init__.py       # Test package initialization
+│   ├── test_api_handlers.py
 │   ├── test_config.py    # Configuration tests
-│   └── test_imports.py   # Import tests
+│   ├── test_downstream_handler.py
+│   ├── test_full_integration.py
+│   ├── test_local_command_handler.py
+│   ├── test_main.py
+│   └── test_upstream_handler.py
 ├── run_proxy.py          # Executable script
 ├── pyproject.toml        # Project metadata, dependencies, and tool configs
 ├── uv.lock               # Locked dependencies (uv)
-├── requirements.txt      # Python dependencies (pip fallback)
 ├── .pre-commit-config.yaml  # Pre-commit hooks configuration
 ├── .python-version       # Python version specification
 ├── Dockerfile            # Docker image configuration

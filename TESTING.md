@@ -10,6 +10,14 @@ pip install -r requirements.txt
 
 ## Basic Functionality Tests
 
+## Local Quality Check
+
+Run pre-commit and show test coverage in one step:
+
+```bash
+make check
+```
+
 ### 1. Start the Server
 
 ```bash
