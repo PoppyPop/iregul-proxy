@@ -268,6 +268,7 @@ class ProxyServer:
                 writer.write(response.encode("utf-8"))
                 await writer.drain()
             except ValueError as e:
+                logger.error("Error executing local command: %s", e)
                 writer.write(str(e).encode("utf-8"))
                 await writer.drain()
             except TimeoutError:
