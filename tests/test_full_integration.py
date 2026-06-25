@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import re
+import socket
 from collections.abc import AsyncGenerator
 from time import monotonic
 from types import SimpleNamespace
@@ -344,6 +345,152 @@ async def test_downstream_keepalive_is_ignored_when_upstream_is_disabled(
 
     assert proxy.upstream_handler is None
     assert proxy.get_last_data() is None
+
+
+async def test_local_command_still_works_when_upstream_configured_but_connection_fails(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Local-to-downstream flow remains available when upstream connect fails."""
+    with socket.socket() as free_socket:
+        free_socket.bind(("127.0.0.1", 0))
+        unreachable_port = free_socket.getsockname()[1]
+
+    proxy = ProxyServer(
+        proxy_host="127.0.0.1",
+        proxy_port=0,
+        upstream_host="127.0.0.1",
+        upstream_port=unreachable_port,
+        upstream_enabled=True,
+        local_command_host="127.0.0.1",
+        local_command_port=0,
+        log_downstream=True,
+        readuntil_timeout=2,
+        log_dir="/tmp",
+        log_max_bytes=1024 * 1024,
+        log_backup_count=2,
+    )
+    await proxy.start()
+
+    if proxy.downstream_handler.server and proxy.downstream_handler.server.sockets:
+        proxy.proxy_port = proxy.downstream_handler.server.sockets[0].getsockname()[1]
+    if proxy.local_command_handler.server and proxy.local_command_handler.server.sockets:
+        proxy.local_command_port = proxy.local_command_handler.server.sockets[0].getsockname()[1]
+
+    async def fake_decode_text(text_data: str) -> SimpleNamespace:
+        if text_data == "hp-local-response{l-upstream-down#}":
+            return SimpleNamespace(
+                is_keepalive=False,
+                message_type="10",
+                timestamp=None,
+                groups=[],
+                is_old=False,
+                count=0,
+            )
+        raise ValueError(f"Unexpected downstream frame: {text_data}")
+
+    monkeypatch.setattr(decoder, "decode_text", fake_decode_text)
+
+    hp_reader, hp_writer = await asyncio.open_connection(proxy.proxy_host, proxy.proxy_port)
+    await asyncio.sleep(0.2)
+
+    try:
+        local_reader, local_writer = await asyncio.open_connection(
+            proxy.local_command_host,
+            proxy.local_command_port,
+        )
+        try:
+            local_writer.write(b"cdraminfoDEV1PWD1{501#}")
+            await local_writer.drain()
+
+            local_to_downstream = await asyncio.wait_for(hp_reader.readuntil(b"}"), timeout=2.0)
+            assert local_to_downstream == b"cdraminfoDEV1PWD1{10#}"
+
+            hp_writer.write(b"hp-local-response{l-upstream-down#}")
+            await hp_writer.drain()
+
+            local_response = (await asyncio.wait_for(local_reader.read(1024), timeout=2.0)).decode(
+                "utf-8",
+                errors="ignore",
+            )
+            assert re.match(
+                r"^\d{2}/\d{2}/\d{4} \d{2}:\d{2}:\d{2}\{l-upstream-down#\}$",
+                local_response,
+            )
+        finally:
+            local_writer.close()
+            await local_writer.wait_closed()
+    finally:
+        hp_writer.close()
+        await hp_writer.wait_closed()
+        await proxy.stop()
+
+
+async def test_local_command_still_works_when_upstream_keepalive_forwarding_fails(
+    proxy_with_upstream: tuple[ProxyServer, MockUpstreamEndpoint],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Local-to-downstream flow continues after upstream keepalive forwarding cannot proceed."""
+    proxy, upstream = proxy_with_upstream
+
+    async def fake_decode_text(text_data: str) -> SimpleNamespace:
+        if text_data == "hp-keepalive{ka-fail#}":
+            return SimpleNamespace(
+                is_keepalive=True,
+                message_type=None,
+                timestamp=None,
+                groups=[],
+                is_old=False,
+                count=0,
+            )
+        if text_data == "hp-local-response{l-after-ka-fail#}":
+            return SimpleNamespace(
+                is_keepalive=False,
+                message_type="10",
+                timestamp=None,
+                groups=[],
+                is_old=False,
+                count=0,
+            )
+        raise ValueError(f"Unexpected downstream frame: {text_data}")
+
+    monkeypatch.setattr(decoder, "decode_text", fake_decode_text)
+
+    hp_reader, hp_writer = await asyncio.open_connection(proxy.proxy_host, proxy.proxy_port)
+    await upstream.wait_connected()
+    await upstream.stop()
+
+    try:
+        hp_writer.write(b"hp-keepalive{ka-fail#}")
+        await hp_writer.drain()
+
+        local_reader, local_writer = await asyncio.open_connection(
+            proxy.local_command_host,
+            proxy.local_command_port,
+        )
+        try:
+            local_writer.write(b"cdraminfoDEV1PWD1{501#}")
+            await local_writer.drain()
+
+            local_to_downstream = await asyncio.wait_for(hp_reader.readuntil(b"}"), timeout=2.0)
+            assert local_to_downstream == b"cdraminfoDEV1PWD1{10#}"
+
+            hp_writer.write(b"hp-local-response{l-after-ka-fail#}")
+            await hp_writer.drain()
+
+            local_response = (await asyncio.wait_for(local_reader.read(1024), timeout=2.0)).decode(
+                "utf-8",
+                errors="ignore",
+            )
+            assert re.match(
+                r"^\d{2}/\d{2}/\d{4} \d{2}:\d{2}:\d{2}\{l-after-ka-fail#\}$",
+                local_response,
+            )
+        finally:
+            local_writer.close()
+            await local_writer.wait_closed()
+    finally:
+        hp_writer.close()
+        await hp_writer.wait_closed()
 
 
 async def test_get_last_data_returns_downstream_last_data(
