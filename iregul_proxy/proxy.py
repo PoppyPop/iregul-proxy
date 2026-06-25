@@ -19,7 +19,10 @@ logger = logging.getLogger(__name__)
 class LocalizedFormatter(logging.Formatter):
     """Formatter that uses localized time instead of UTC."""
 
-    converter = time.localtime
+    @staticmethod
+    def converter(timestamp: float | None = None) -> time.struct_time:
+        """Return localized time with a Formatter-compatible signature."""
+        return time.localtime(timestamp)
 
     def format(self, record: logging.LogRecord) -> str:
         """Format the log record with source field.
