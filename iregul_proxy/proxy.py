@@ -5,7 +5,6 @@ from __future__ import annotations
 import asyncio
 import logging
 import os
-import time
 from logging.handlers import RotatingFileHandler
 from typing import Any
 
@@ -18,11 +17,6 @@ logger = logging.getLogger(__name__)
 
 class LocalizedFormatter(logging.Formatter):
     """Formatter that uses localized time instead of UTC."""
-
-    @staticmethod
-    def converter(timestamp: float | None = None) -> time.struct_time:
-        """Return localized time with a Formatter-compatible signature."""
-        return time.localtime(timestamp)
 
     def format(self, record: logging.LogRecord) -> str:
         """Format the log record with source field.
@@ -154,7 +148,7 @@ class ProxyServer:
                 source=source,
             )
         except (TimeoutError, ConnectionError, ValueError) as exc:
-            logger.warning("Upstream-request transfer failed: %s", exc)
+            logger.warning(f"{source} transfer failed: {exc}")
             return None
 
     async def _on_local_command_message(

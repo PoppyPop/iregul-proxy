@@ -160,7 +160,7 @@ class LocalCommandHandler:
 
     async def execute_command(self, raw_message: str) -> str:
         """Execute a local command and return the response text."""
-        self.file_logger.debug(raw_message, extra={"source": "LOCAL"})
+
         external_command = self.extract_local_command(raw_message)
         if external_command is None:
             return "Invalid local command format"
@@ -171,7 +171,11 @@ class LocalCommandHandler:
         )
 
         logger.debug("Executing command %s, mapped to %s", external_command, internal_command)
-        self.file_logger.debug(request_message, extra={"source": "LOCAL-DOWN"})
+
+        if request_message == raw_message:
+            self.file_logger.debug(raw_message, extra={"source": "LOCAL"})
+        else:
+            self.file_logger.debug(f"{request_message} ({raw_message})", extra={"source": "LOCAL"})
 
         try:
             response = await self.on_message(request_message.encode("utf-8"), internal_command)
