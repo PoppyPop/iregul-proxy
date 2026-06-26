@@ -16,6 +16,10 @@ logger = logging.getLogger(__name__)
 class UpstreamConnectionHandler:
     """Manages one optional upstream connection for the proxy."""
 
+    _initial_reconnect_delay_seconds = 60.0
+    _reconnect_delay_step_seconds = 60.0
+    _max_reconnect_delay_seconds = 15.0 * 60.0
+
     def __init__(
         self,
         host: str,
@@ -57,6 +61,7 @@ class UpstreamConnectionHandler:
 
     async def _run(self) -> None:
         """Maintain upstream connection with reconnect loop."""
+        reconnect_delay_seconds = self._initial_reconnect_delay_seconds
         while self._enabled:
             try:
                 upstream_reader, upstream_writer = await asyncio.open_connection(
@@ -64,6 +69,7 @@ class UpstreamConnectionHandler:
                 )
                 self._writer = upstream_writer
                 logger.info("Connected upstream %s:%s", self.host, self.port)
+                reconnect_delay_seconds = self._initial_reconnect_delay_seconds
                 await self._read_upstream_loop(upstream_reader)
             except asyncio.CancelledError:
                 raise
@@ -74,7 +80,11 @@ class UpstreamConnectionHandler:
                 await self._close_writer()
 
             if self._enabled:
-                await asyncio.sleep(1.0)
+                await asyncio.sleep(reconnect_delay_seconds)
+                reconnect_delay_seconds = min(
+                    reconnect_delay_seconds + self._reconnect_delay_step_seconds,
+                    self._max_reconnect_delay_seconds,
+                )
 
     async def _read_upstream_loop(self, upstream_reader: asyncio.StreamReader) -> None:
         """Read upstream requests and execute them through downstream callback flow."""

@@ -6,6 +6,9 @@ import asyncio
 import logging
 from typing import TYPE_CHECKING
 
+import pytest
+
+from iregul_proxy import upstream as upstream_module
 from iregul_proxy.upstream import UpstreamConnectionHandler
 
 
@@ -141,3 +144,46 @@ async def test_start_and_stop_manage_background_task() -> None:
 
     await handler.stop()
     assert handler._task is None  # type: ignore[reportPrivateUsage]
+
+
+async def test_run_increases_reconnect_delay_and_resets_after_success(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Reconnect delay grows on failures, then resets after a successful connect."""
+
+    async def on_message(_data: bytes, _expected: str | None) -> bytes | None:
+        return None
+
+    handler = build_handler(on_message)
+    delays: list[float] = []
+    connection_attempts = 0
+    writer = FakeWriter()
+
+    async def fake_read_upstream_loop(_reader: asyncio.StreamReader) -> None:
+        return None
+
+    async def fake_sleep(delay: float) -> None:
+        delays.append(delay)
+        if len(delays) == 3:
+            handler._enabled = False  # type: ignore[reportPrivateUsage]
+
+    async def fake_open_connection(
+        _host: str,
+        _port: int,
+    ) -> tuple[asyncio.StreamReader, FakeWriter]:
+        nonlocal connection_attempts
+        connection_attempts += 1
+        if connection_attempts < 3:
+            raise OSError(f"attempt {connection_attempts} failed")
+        return asyncio.StreamReader(), writer
+
+    monkeypatch.setattr(upstream_module.asyncio, "open_connection", fake_open_connection)
+    monkeypatch.setattr(upstream_module.asyncio, "sleep", fake_sleep)
+    monkeypatch.setattr(handler, "_read_upstream_loop", fake_read_upstream_loop)
+
+    handler._enabled = True  # type: ignore[reportPrivateUsage]
+    await handler._run()  # type: ignore[reportPrivateUsage]
+
+    assert delays == [60.0, 120.0, 60.0]
+    assert connection_attempts == 3
+    assert writer.closed is True
