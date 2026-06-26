@@ -102,7 +102,7 @@ class UpstreamConnectionHandler:
     def extract_command_from_frame(raw_message: str) -> str | None:
         """Extract command type from frame like {200#} for response matching."""
         start = raw_message.find("{")
-        end = raw_message.find("#}", start + 1)
+        end = raw_message.find("#", start + 1)
         if start == -1 or end == -1:
             return None
         command = raw_message[start + 1 : end].strip()

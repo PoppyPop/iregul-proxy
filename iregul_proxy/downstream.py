@@ -28,7 +28,7 @@ class PendingResponse:
 class DownstreamConnectionHandler:
     """Owns downstream client connection lifecycle for the proxy."""
 
-    KNOWN_MESSAGE_TYPES = {"10", "200"}
+    KNOWN_MESSAGE_TYPES = {"10", "12", "200"}
 
     def __init__(
         self,
@@ -102,6 +102,12 @@ class DownstreamConnectionHandler:
         async with self._request_lock:
             if not await self.is_connected():
                 raise ValueError("No downstream connection available")
+
+            logger.info(
+                "Forwarding request to downstream: expected_message_type=%s, source=%s",
+                expected_message_type,
+                source,
+            )
 
             self._pending_response = PendingResponse(
                 expected_message_type=expected_message_type,
