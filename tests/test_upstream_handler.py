@@ -53,7 +53,7 @@ def build_handler(
 
 def test_extract_command_from_frame_returns_command_for_valid_frame() -> None:
     """Frame parser extracts command for matching iRegul format."""
-    assert UpstreamConnectionHandler.extract_command_from_frame("prefix {200#} suffix") == "200"
+    assert UpstreamConnectionHandler.extract_command_from_frame("prefix {200#suffix}") == "200"
 
 
 def test_extract_command_from_frame_returns_none_for_invalid_frame() -> None:

@@ -103,7 +103,7 @@ class DownstreamConnectionHandler:
             if not await self.is_connected():
                 raise ValueError("No downstream connection available")
 
-            logger.info(
+            logger.debug(
                 "Forwarding request to downstream: expected_message_type=%s, source=%s",
                 expected_message_type,
                 source,
