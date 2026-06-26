@@ -50,8 +50,6 @@ class DownstreamConnectionHandler:
         self.on_keepalive = on_keepalive
         self.server: asyncio.Server | None = None
         self.active_connections: set[asyncio.Task[None]] = set()
-        self._connection_lock = asyncio.Lock()
-        self._read_write_lock = asyncio.Lock()
         self._request_lock = asyncio.Lock()
         self._reader: asyncio.StreamReader | None = None
         self._writer: asyncio.StreamWriter | None = None
@@ -123,19 +121,16 @@ class DownstreamConnectionHandler:
                 self._pending_response = None
 
     async def is_connected(self) -> bool:
-        async with self._connection_lock:
-            return self._writer is not None and not self._writer.is_closing()
+        return self._writer is not None and not self._writer.is_closing()
 
     async def _send_raw(self, data: bytes) -> None:
-        async with self._connection_lock:
-            writer = self._writer
+        writer = self._writer
 
         if writer is None or writer.is_closing():
             raise ValueError("No downstream connection available")
 
-        async with self._read_write_lock:
-            writer.write(data)
-            await writer.drain()
+        writer.write(data)
+        await writer.drain()
 
     def _notify_if_matches(self, message_type: str, payload: bytes) -> str:
         pending = self._pending_response
@@ -150,10 +145,9 @@ class DownstreamConnectionHandler:
         return "UNKNOWN"
 
     async def _close_active_connection(self) -> None:
-        async with self._connection_lock:
-            writer = self._writer
-            self._reader = None
-            self._writer = None
+        writer = self._writer
+        self._reader = None
+        self._writer = None
 
         pending = self._pending_response
         if pending is not None and not pending.future.done():
@@ -189,9 +183,9 @@ class DownstreamConnectionHandler:
             return
 
         logger.info("Connection from %s", addr)
-        async with self._connection_lock:
-            self._reader = reader
-            self._writer = writer
+
+        self._reader = reader
+        self._writer = writer
 
         await self.on_client_connect()
 
@@ -211,8 +205,7 @@ class DownstreamConnectionHandler:
         while await self.is_connected():
             should_log = True
             decoded: Any | None = None
-            async with self._connection_lock:
-                reader = self._reader
+            reader = self._reader
 
             if reader is None:
                 break
